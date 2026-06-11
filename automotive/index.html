@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sovra AI — Automotive Assistant</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d14;color:#e8e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.wrapper{width:100%;max-width:720px;height:100vh;display:flex;flex-direction:column;padding:24px}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.badge{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:6px 14px;font-size:12px;color:#818cf8;letter-spacing:.06em;text-transform:uppercase}
+.title{font-size:18px;font-weight:600;color:#e8e8f0}
+.subtitle{font-size:13px;color:#555;margin-top:2px}
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:4px 0;scrollbar-width:thin;scrollbar-color:#222 transparent}
+.msg{max-width:82%;padding:13px 16px;border-radius:16px;font-size:14px;line-height:1.6;animation:fadeUp .25s ease}
+.msg.user{align-self:flex-end;background:#1e3a5f;border-bottom-right-radius:4px;color:#dbeafe}
+.msg.bot{align-self:flex-start;background:#141420;border:1px solid #1e1e30;border-bottom-left-radius:4px}
+.msg.bot .label{font-size:11px;color:#818cf8;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.msg.bot .answer{color:#d4d4e8}
+.msg.bot .meta{margin-top:8px;font-size:11px;color:#444;display:flex;gap:12px}
+.typing{display:flex;gap:5px;padding:14px 16px;background:#141420;border:1px solid #1e1e30;border-radius:16px;border-bottom-left-radius:4px;align-self:flex-start;width:60px}
+.typing span{width:6px;height:6px;border-radius:50%;background:#818cf8;animation:bounce 1.1s infinite ease-in-out}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{background:#111128;border:1px solid #2a2a4a;border-radius:20px;padding:6px 14px;font-size:12px;color:#818cf8;cursor:pointer;transition:all .2s}
+.chip:hover{background:#1a1a3a;border-color:#818cf8}
+.input-row{display:flex;gap:10px;margin-top:12px}
+input{flex:1;background:#0f0f1c;border:1px solid #1e1e30;border-radius:12px;padding:13px 16px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:#818cf8}
+button{background:#4f46e5;border:none;border-radius:12px;padding:13px 22px;color:#fff;font-size:14px;cursor:pointer;transition:background .2s;white-space:nowrap}
+button:hover{background:#6366f1}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1.2);opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div>
+      <div class="badge">Sovra AI</div>
+    </div>
+    <div>
+      <div class="title">Automotive Assistant</div>
+      <div class="subtitle">Ask anything about your vehicle</div>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="msg bot">
+      <div class="label">Sovra AI</div>
+      <div class="answer">Hello! I'm your automotive assistant. Ask me about warning lights, maintenance, sounds, or anything about your vehicle.</div>
+    </div>
+  </div>
+
+  <div class="suggestions" id="chips">
+    <div class="chip" onclick="ask(this.textContent)">Oil pressure light is on</div>
+    <div class="chip" onclick="ask(this.textContent)">Strange noise when braking</div>
+    <div class="chip" onclick="ask(this.textContent)">Check engine light flashing</div>
+    <div class="chip" onclick="ask(this.textContent)">When to change oil?</div>
+  </div>
+
+  <div class="input-row">
+    <input id="inp" placeholder="Describe what you're seeing or hearing…" onkeydown="if(event.key==='Enter')send()"/>
+    <button onclick="send()">Ask</button>
+  </div>
+</div>
+
+<script>
+const KB = [
+  {k:["oil","oil pressure","oil can","red oil"],r:{t:"Oil Pressure Warning",a:"Your engine oil pressure is critically low. This can cause serious engine damage within minutes.",steps:["Pull over immediately and turn off the engine","Do NOT restart the engine","Check oil level with the dipstick","If oil level is normal, call for assistance — possible pump failure"],u:"STOP NOW",c:"red"}},
+  {k:["temperature","overheating","thermometer","hot","steam","coolant"],r:{t:"Engine Overheating",a:"Your engine is overheating. Continuing to drive risks permanent engine damage.",steps:["Pull over safely and turn off the engine","Do NOT open the radiator cap while hot","Wait at least 30 minutes before checking coolant","Add coolant only when the engine is cool"],u:"STOP NOW",c:"red"}},
+  {k:["battery","charging","red battery"],r:{t:"Battery / Charging System",a:"Your charging system has failed. The car is running on battery power only.",steps:["Turn off AC, radio, and all non-essential electronics","Drive directly home or to a shop — you may have 20–40 minutes","Do not turn the engine off until you reach a safe destination"],u:"DRIVE CAREFULLY",c:"amber"}},
+  {k:["brake","braking","brake light","brake pedal","spongy"],r:{t:"Brake System Warning",a:"There may be a brake system fault or low brake fluid.",steps:["First check if the parking brake is fully released","Test brakes gently — if pedal feels soft or sinks, stop driving","Check brake fluid level in the reservoir under the hood","If fluid is low or brakes feel wrong, do not drive — call for help"],u:"STOP SOON",c:"amber"}},
+  {k:["check engine","engine light","yellow engine"],r:{t:"Check Engine Light",a:"The engine management system has detected a fault. Severity depends on whether the light is steady or flashing.",steps:["Steady light: check the gas cap is tight — if it stays on, get a diagnostic scan this week","Flashing light: reduce speed immediately and get checked today — active engine misfire detected","Avoid heavy acceleration until diagnosed"],u:"STEADY = SOON  |  FLASHING = NOW",c:"amber"}},
+  {k:["tire","tyre","pressure","flat","tpms","psi"],r:{t:"Tire Pressure Warning",a:"One or more tires are significantly under-inflated (25%+ below recommended).",steps:["Check all four tire pressures when safe to stop","Recommended pressure: 35 PSI front and rear","Inflate to correct level — light should turn off after a few miles of driving","Inspect for nails or punctures if one tire is repeatedly losing pressure"],u:"NO RUSH — CHECK TODAY",c:"green"}},
+  {k:["noise","sound","grinding","squealing","clicking","knocking","rattling","vibration"],r:{t:"Unusual Sound / Vibration",a:"Unusual sounds often signal worn components. The location and type of sound helps identify the cause.",steps:["Grinding when braking → worn brake pads, replace soon","Clicking when turning → CV joint issue, inspect within a week","Knocking from engine → low oil or engine knock, check oil immediately","Rattling from underneath → loose heat shield or exhaust, not urgent but get checked"],u:"DEPENDS ON SOUND",c:"amber"}},
+  {k:["oil change","maintenance","service","maint","wrench"],r:{t:"Maintenance Reminder",a:"Your vehicle is due for scheduled maintenance.",steps:["Oil and filter change every 5,000 miles or 6 months","Tire rotation every 5,000 miles","Brake inspection every 15,000 miles","Cabin air filter every 15,000–20,000 miles","To reset the maintenance light: hold the trip reset button while turning the ignition to ON"],u:"SCHEDULE SOON",c:"green"}},
+  {k:["4wd","four wheel","awd","traction","vsc","stability","slip"],r:{t:"4WD / Traction Control",a:"Your traction or stability control system has been activated or has a fault.",steps:["If VSC OFF light came on by itself (not pressed): have the system inspected","If 4WD light is flashing: stop and wait for the system to cool down (transfer case overheat)","Traction control activating on slippery roads is normal — it's working correctly"],u:"INSPECT IF UNPROMPTED",c:"amber"}},
+  {k:["power steering","steering heavy","hard to steer"],r:{t:"Power Steering Warning",a:"Power steering system failure. Steering will feel very heavy.",steps:["You can still steer but it requires much more force","Drive carefully directly to a service center","Avoid highways if possible — low-speed maneuvering is most affected"],u:"DRIVE CAREFULLY",c:"amber"}},
+  {k:["fuel","gas","empty","low fuel"],r:{t:"Low Fuel Warning",a:"You have approximately 2–3 gallons remaining (roughly 40–60 miles).",steps:["Refuel at your earliest convenience","Avoid running completely empty — can damage the fuel pump"],u:"REFUEL SOON",c:"green"}},
+  {k:["smell","burning","smoke","fumes"],r:{t:"Burning Smell / Smoke",a:"A burning smell requires immediate attention — the source determines severity.",steps:["Burning rubber → check for a dragging brake or something caught under the car","Burning oil → oil leak onto hot engine components, check oil level","Sweet smell from vents → coolant leak, check coolant level","Smoke from hood → pull over immediately and turn off the engine"],u:"PULL OVER IF SMOKE VISIBLE",c:"red"}},
+];
+
+const FALLBACK = {t:"Question Received",a:"I can help with warning lights, unusual sounds, smells, maintenance schedules, and vehicle features. Could you describe what you're seeing or hearing in more detail?",steps:["Describe the warning light color and symbol","Describe any unusual sounds and when they occur","Mention any changes in how the car drives or feels"],u:"PROVIDE MORE DETAIL",c:"blue"};
+
+function match(q){
+  const ql=q.toLowerCase();
+  let best=null,top=0;
+  for(const item of KB){
+    const score=item.k.filter(k=>ql.includes(k)).length;
+    if(score>top){top=score;best=item.r;}
+  }
+  return best||FALLBACK;
+}
+
+function colorClass(c){return{red:"#ef4444",amber:"#f59e0b",green:"#22c55e",blue:"#818cf8"}[c]||"#818cf8";}
+
+function renderBot(r){
+  const stepsHtml=r.steps.map(s=>`<li style="margin:4px 0;color:#b0b0c8">${s}</li>`).join('');
+  return `<div class="label">Sovra AI</div>
+<div class="answer"><strong>${r.t}</strong><br><br>${r.a}</div>
+<ul style="margin:10px 0 0 16px;font-size:13px">${stepsHtml}</ul>
+<div class="meta"><span style="color:${colorClass(r.c)};font-weight:600">● ${r.u}</span></div>`;
+}
+
+function appendMsg(role,html){
+  const d=document.createElement('div');
+  d.className=`msg ${role}`;
+  d.innerHTML=html;
+  document.getElementById('chat').appendChild(d);
+  document.getElementById('chat').scrollTop=99999;
+}
+
+function ask(text){
+  document.getElementById('inp').value=text;
+  send();
+}
+
+function send(){
+  const inp=document.getElementById('inp');
+  const q=inp.value.trim();
+  if(!q)return;
+  inp.value='';
+  document.getElementById('chips').style.display='none';
+  appendMsg('user',q);
+
+  const t=document.createElement('div');
+  t.className='typing';
+  t.innerHTML='<span></span><span></span><span></span>';
+  document.getElementById('chat').appendChild(t);
+  document.getElementById('chat').scrollTop=99999;
+
+  setTimeout(()=>{
+    t.remove();
+    appendMsg('bot',renderBot(match(q)));
+  },900+Math.random()*600);
+}
+</script>
+</body>
+</html>

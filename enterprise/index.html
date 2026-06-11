@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sovra AI — Enterprise Knowledge Assistant</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d14;color:#e8e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.wrapper{width:100%;max-width:720px;height:100vh;display:flex;flex-direction:column;padding:24px}
+.header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.badge{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:8px;padding:6px 14px;font-size:12px;color:#10b981;letter-spacing:.06em;text-transform:uppercase}
+.title{font-size:18px;font-weight:600}
+.subtitle{font-size:13px;color:#555;margin-top:2px}
+.chat{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding:4px 0;scrollbar-width:thin;scrollbar-color:#222 transparent}
+.msg{max-width:82%;padding:13px 16px;border-radius:16px;font-size:14px;line-height:1.6;animation:fadeUp .25s ease}
+.msg.user{align-self:flex-end;background:#0f3025;border-bottom-right-radius:4px;color:#d1fae5}
+.msg.bot{align-self:flex-start;background:#141420;border:1px solid #1e1e30;border-bottom-left-radius:4px}
+.msg.bot .label{font-size:11px;color:#10b981;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+.msg.bot .answer{color:#d4d4e8}
+.msg.bot .source{margin-top:8px;font-size:11px;color:#444;padding-top:8px;border-top:1px solid #1e1e30}
+.typing{display:flex;gap:5px;padding:14px 16px;background:#141420;border:1px solid #1e1e30;border-radius:16px;border-bottom-left-radius:4px;align-self:flex-start;width:60px}
+.typing span{width:6px;height:6px;border-radius:50%;background:#10b981;animation:bounce 1.1s infinite ease-in-out}
+.typing span:nth-child(2){animation-delay:.18s}
+.typing span:nth-child(3){animation-delay:.36s}
+.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{background:#111128;border:1px solid #1e3a30;border-radius:20px;padding:6px 14px;font-size:12px;color:#10b981;cursor:pointer;transition:all .2s}
+.chip:hover{background:#0f2a20;border-color:#10b981}
+.input-row{display:flex;gap:10px;margin-top:12px}
+input{flex:1;background:#0f0f1c;border:1px solid #1e1e30;border-radius:12px;padding:13px 16px;color:#e8e8f0;font-size:14px;outline:none;transition:border-color .2s}
+input:focus{border-color:#10b981}
+button{background:#059669;border:none;border-radius:12px;padding:13px 22px;color:#fff;font-size:14px;cursor:pointer;transition:background .2s;white-space:nowrap}
+button:hover{background:#10b981}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,80%,100%{transform:scale(.8);opacity:.5}40%{transform:scale(1.2);opacity:1}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <div class="header">
+    <div>
+      <div class="badge">Sovra AI</div>
+    </div>
+    <div>
+      <div class="title">Enterprise Knowledge Assistant</div>
+      <div class="subtitle">Instant answers from your company knowledge base</div>
+    </div>
+  </div>
+
+  <div class="chat" id="chat">
+    <div class="msg bot">
+      <div class="label">Sovra AI</div>
+      <div class="answer">Hello! I can answer questions about company policies, HR procedures, IT support, compliance, and internal processes. What do you need help with?</div>
+    </div>
+  </div>
+
+  <div class="suggestions" id="chips">
+    <div class="chip" onclick="ask(this.textContent)">How do I submit expenses?</div>
+    <div class="chip" onclick="ask(this.textContent)">What is the vacation policy?</div>
+    <div class="chip" onclick="ask(this.textContent)">How to reset my password?</div>
+    <div class="chip" onclick="ask(this.textContent)">Remote work policy</div>
+  </div>
+
+  <div class="input-row">
+    <input id="inp" placeholder="Ask about policies, procedures, or company info…" onkeydown="if(event.key==='Enter')send()"/>
+    <button onclick="send()">Ask</button>
+  </div>
+</div>
+
+<script>
+const KB = [
+  {k:["expense","reimburse","reimbursement","receipt","purchase"],r:{t:"Expense Reimbursement",a:"All business expenses must be submitted within 30 days of purchase.",steps:["Log in to the company portal at expenses.company.com","Upload receipt and fill in the expense category and project code","Expenses under $50: auto-approved within 24 hours","Expenses $50–$500: requires direct manager approval (1–2 business days)","Expenses over $500: requires department head approval (3–5 business days)","Payment is processed on the 15th and last day of each month"],src:"HR Policy Manual — Section 4.2"}},
+  {k:["vacation","annual leave","time off","pto","days off","holiday"],r:{t:"Vacation & PTO Policy",a:"Full-time employees receive 20 days of paid time off per year, accrued monthly.",steps:["Accrue 1.67 days per month (resets January 1)","Request time off at least 2 weeks in advance for periods over 3 days","Submit requests via the HR portal under 'Leave Requests'","Up to 5 unused days can be carried over to the next year","PTO payouts are not available upon resignation — use before your last day"],src:"HR Policy Manual — Section 2.1"}},
+  {k:["password","reset","locked","account","login","access"],r:{t:"Password Reset & Account Access",a:"Account issues are handled by the IT Helpdesk. Most resets are completed within 15 minutes.",steps:["For self-service reset: visit sso.company.com and click 'Forgot Password'","If self-service fails: contact IT Helpdesk at it@company.com or ext. 1001","For urgent access issues during business hours: Slack #it-support for faster response","MFA device lost: visit IT desk in person with your employee ID"],src:"IT Policy — Section 1.4"}},
+  {k:["remote","work from home","wfh","hybrid","office"],r:{t:"Remote Work Policy",a:"The company operates on a hybrid model. Teams set their own in-office schedules.",steps:["Minimum 2 days per week in-office (Tuesday and Thursday recommended)","Remote work equipment budget: $800 one-time, request via IT portal","VPN required for all remote access to internal systems","Core hours: 10am–3pm local time regardless of location","International remote work (30+ days): requires HR and legal approval in advance"],src:"HR Policy Manual — Section 3.5"}},
+  {k:["onboarding","new hire","first day","start","joining","induction"],r:{t:"New Employee Onboarding",a:"Onboarding typically spans your first two weeks.",steps:["Day 1: IT setup, badge, HR paperwork — report to reception at 9am","Week 1: complete all mandatory compliance training in the Learning Portal","Week 1: schedule 1:1s with your direct team members","Week 2: complete department-specific tool training","Your buddy will be assigned by your manager before your start date","30/60/90 day check-ins are scheduled automatically by HR"],src:"Onboarding Guide v3.2"}},
+  {k:["benefit","insurance","health","dental","401k","pension","stock","equity"],r:{t:"Employee Benefits",a:"Full benefits are available to all full-time employees from Day 1.",steps:["Health insurance: choose plan during first 30 days at benefits.company.com","Dental & vision: included in all health plans at no extra cost","401(k): company matches up to 4% — enroll via Fidelity portal","Life insurance: 2x annual salary, automatic enrollment","Equity/RSU: vesting schedule shared in your offer letter — 4-year vest, 1-year cliff","Open enrollment: every November for the following year"],src:"Benefits Guide 2024"}},
+  {k:["compliance","code of conduct","ethics","conflict of interest","harassment","policy"],r:{t:"Compliance & Code of Conduct",a:"All employees must complete annual compliance training. Key policies are summarized below.",steps:["Anti-harassment: zero tolerance — report incidents to hr@company.com or anonymously via EthicsPoint","Conflict of interest: disclose any outside business relationships to your manager and HR","Confidentiality: all internal data is confidential — do not share externally without approval","Social media: do not disclose company information or speak on behalf of the company","Annual compliance training must be completed by December 31 each year"],src:"Code of Conduct 2024 — Section 1"}},
+  {k:["payroll","salary","pay","paycheck","payslip","compensation"],r:{t:"Payroll Information",a:"Salaries are paid bi-weekly on Fridays.",steps:["Pay date: every other Friday — see the payroll calendar on the HR portal","Payslips: available in Workday under 'Pay' 2 days before pay date","Direct deposit changes: submit at least 5 business days before next pay date via Workday","Tax forms (W-2): available by January 31 each year","Salary questions or discrepancies: contact payroll@company.com"],src:"Payroll Policy — Section 2"}},
+  {k:["training","learning","course","certification","development","skill","upskill"],r:{t:"Learning & Development",a:"The company supports continuous learning with a dedicated budget.",steps:["Annual L&D budget: $1,500 per employee (resets January 1)","Pre-approved training: any course on the internal learning catalog — instant approval","External certifications/conferences: submit request to manager with cost and business justification","Study time: up to 2 hours/week during work hours with manager approval","Completed certifications: add to your HR profile and share with your manager"],src:"L&D Policy — Section 5"}},
+  {k:["it","laptop","equipment","hardware","software","tool","request"],r:{t:"IT Equipment & Software",a:"IT requests are processed within 2 business days for standard items.",steps:["New software request: submit ticket at it.company.com/requests","Hardware issue: same-day response for critical failures; 1–2 days for non-urgent","Loaner equipment: available from IT desk for up to 2 weeks","Approved software list: available on the IT portal — unlisted software requires security review","Equipment return: all company equipment must be returned on last day of employment"],src:"IT Policy — Section 2.1"}},
+];
+
+const FALLBACK = {t:"Let Me Check That",a:"I found some related information in our knowledge base, but I want to make sure I give you the most accurate answer.",steps:["Try rephrasing your question with more specific keywords","You can also browse the full policy library at policy.company.com","For urgent HR matters: contact hr@company.com","For IT issues: contact it@company.com or Slack #it-support","For all other queries: reach out to your department admin"],src:"General Reference"};
+
+function match(q){
+  const ql=q.toLowerCase();
+  let best=null,top=0;
+  for(const item of KB){
+    const score=item.k.filter(k=>ql.includes(k)).length;
+    if(score>top){top=score;best=item.r;}
+  }
+  return best||FALLBACK;
+}
+
+function renderBot(r){
+  const stepsHtml=r.steps.map(s=>`<li style="margin:5px 0;color:#b0b0c8">${s}</li>`).join('');
+  return `<div class="label">Sovra AI</div>
+<div class="answer"><strong>${r.t}</strong><br><br>${r.a}</div>
+<ul style="margin:10px 0 0 16px;font-size:13px">${stepsHtml}</ul>
+<div class="source">📄 Source: ${r.src}</div>`;
+}
+
+function appendMsg(role,html){
+  const d=document.createElement('div');
+  d.className=`msg ${role}`;
+  d.innerHTML=html;
+  document.getElementById('chat').appendChild(d);
+  document.getElementById('chat').scrollTop=99999;
+}
+
+function ask(text){document.getElementById('inp').value=text;send();}
+
+function send(){
+  const inp=document.getElementById('inp');
+  const q=inp.value.trim();
+  if(!q)return;
+  inp.value='';
+  document.getElementById('chips').style.display='none';
+  appendMsg('user',q);
+  const t=document.createElement('div');
+  t.className='typing';
+  t.innerHTML='<span></span><span></span><span></span>';
+  document.getElementById('chat').appendChild(t);
+  document.getElementById('chat').scrollTop=99999;
+  setTimeout(()=>{t.remove();appendMsg('bot',renderBot(match(q)));},800+Math.random()*500);
+}
+</script>
+</body>
+</html>
