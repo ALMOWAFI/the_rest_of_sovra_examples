@@ -1,5 +1,4 @@
-import random
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/manufacturing", tags=["Smart Manufacturing"])
@@ -7,187 +6,169 @@ router = APIRouter(prefix="/manufacturing", tags=["Smart Manufacturing"])
 
 class Question(BaseModel):
     question: str
-    defect_id: int = 0  # index from /analyze response, 0 = use session default
+    site: str = "Berlin Electronics Plant"
+    line_id: str | None = None
 
 
-DEFECTS = [
-    {
-        "id": 0,
-        "defect": "Short Circuit",
-        "severity": "critical",
-        "confidence": 97,
-        "location": "Dense conductor routing area — center zone",
-        "action": "Reject board immediately. Do not ship. Quarantine this batch and escalate to engineering.",
-        "cause": "Copper etching inconsistency — chemical bath temperature deviated ±3°C above spec during this production window.",
-        "prevention": "Recalibrate etching bath temperature sensor. Increase QC sampling rate to every 50 units until stable.",
-        "safe_to_ship": False,
+PLANT_SNAPSHOT = {
+    "site": "Berlin Electronics Plant",
+    "timestamp": "2026-06-14T08:30:00Z",
+    "plant_oee": 78.4,
+    "active_alerts": 3,
+    "parts_per_hour": 231,
+    "lines": {
+        "LINE-1": {"oee": 83.1, "availability": 94.0, "performance": 89.4, "quality": 98.8, "status": "stable"},
+        "LINE-2": {"oee": 74.2, "availability": 88.5, "performance": 86.7, "quality": 96.8, "status": "micro-stoppages"},
+        "LINE-3": {"oee": 78.4, "availability": 91.2, "performance": 88.6, "quality": 96.9, "status": "performance loss"},
+        "LINE-4": {"oee": 81.0, "availability": 92.6, "performance": 90.3, "quality": 96.9, "status": "stable"},
+        "LINE-5": {"oee": 69.8, "availability": 84.7, "performance": 84.2, "quality": 98.0, "status": "maintenance watch"},
     },
-    {
-        "id": 1,
-        "defect": "Solder Bridge",
-        "severity": "high",
-        "confidence": 94,
-        "location": "IC pin array — lower left quadrant",
-        "action": "Rework required. Apply precision solder wick to affected pins. Re-inspect after rework.",
-        "cause": "Excess solder paste deposition during screen printing. Stencil aperture may be worn.",
-        "prevention": "Replace stencil aperture for this component type. Verify paste volume with SPI before next run.",
-        "safe_to_ship": False,
-    },
-    {
-        "id": 2,
-        "defect": "Base Material Scratch",
-        "severity": "medium",
-        "confidence": 88,
-        "location": "Substrate surface — edge region (non-functional zone)",
-        "action": "Manual inspection recommended. If scratch depth < 0.1mm and no conductor damage, board may pass.",
-        "cause": "Mechanical handling damage — likely during conveyor transfer between stations.",
-        "prevention": "Install soft edge guards on conveyor transfer points. Review board handling SOPs with operators.",
-        "safe_to_ship": None,  # needs manual review
-    },
-    {
-        "id": 3,
-        "defect": "Missing Component",
-        "severity": "high",
-        "confidence": 99,
-        "location": "Component placement zone — R47 position",
-        "action": "Stop the line. Check component feeder for the affected reel. Rework all affected boards.",
-        "cause": "Component feeder jam or empty reel not flagged by placement machine sensor.",
-        "prevention": "Calibrate feeder presence sensors. Enable pre-run feeder verification check.",
-        "safe_to_ship": False,
-    },
-    {
-        "id": 4,
-        "defect": "No Defect Detected",
-        "severity": "none",
-        "confidence": 99,
-        "location": "Full board scan — all zones clear",
-        "action": "Board passes inspection. Proceed to next production stage.",
-        "cause": "N/A",
-        "prevention": "Continue standard QC sampling protocol.",
-        "safe_to_ship": True,
-    },
-]
+}
 
 KB = [
     {
-        "keywords": ["cause", "why", "reason", "happen", "from", "origin", "what caused"],
-        "handler": lambda d: {
-            "title": "Root Cause Analysis",
-            "answer": d["cause"],
-            "details": [
-                f"Defect: {d['defect']}",
-                f"Confidence: {d['confidence']}%",
-                f"Location: {d['location']}",
-                "This is a process-level issue — investigate before continuing the production run.",
+        "keywords": ["oee", "efficiency", "line 3", "line three"],
+        "response": {
+            "title": "OEE for Line 3",
+            "answer": "Line 3 OEE is 78.4%. Availability is 91.2%, performance is 88.6%, and quality is 96.9%.",
+            "source": "MES Snapshot - Line 3, last 24h",
+            "metrics": {
+                "oee": "78.4%",
+                "availability": "91.2%",
+                "performance": "88.6%",
+                "quality": "96.9%",
+            },
+            "recommendations": [
+                "Investigate short micro-stoppages because performance is the largest loss factor",
+                "Compare cycle-time drift between current and previous shift",
+                "Review feeder changeover time for the last 3 production orders",
             ],
         },
     },
     {
-        "keywords": ["ship", "batch", "safe", "pass", "release", "approve", "ok", "send"],
-        "handler": lambda d: {
-            "title": "Batch Release Decision",
-            "answer": (
-                "✓ Board passes inspection. Batch is safe to proceed."
-                if d["safe_to_ship"] is True
-                else "⚠ Batch should NOT be released until defective units are removed and root cause is addressed."
-                if d["safe_to_ship"] is False
-                else "⚠ Manual review required before batch release decision can be made."
-            ),
-            "details": [
-                f"Detected defect: {d['defect']}",
-                f"Severity: {d['severity'].upper()}",
-                f"Confidence: {d['confidence']}%",
+        "keywords": ["maintenance", "alert", "alerts", "predictive", "vibration", "cnc", "today"],
+        "response": {
+            "title": "Maintenance Alerts",
+            "answer": "There are 3 active maintenance alerts. The highest priority is CNC Unit 7 vibration above the 85th percentile for 4 hours.",
+            "source": "Maintenance System - Active Alerts",
+            "metrics": {
+                "active_alerts": 3,
+                "highest_priority_asset": "CNC Unit 7",
+                "estimated_remaining_useful_life": "12-18 hours",
+            },
+            "recommendations": [
+                "Schedule CNC Unit 7 inspection during the next planned downtime window",
+                "Check spindle bearing temperature and lubrication history",
+                "Keep Line 5 on maintenance watch until vibration trend returns to normal",
             ],
         },
     },
     {
-        "keywords": ["repair", "rework", "fix", "action", "recommend", "do", "should", "next"],
-        "handler": lambda d: {
-            "title": "Recommended Action",
-            "answer": d["action"],
-            "details": [
-                f"Defect: {d['defect']}",
-                f"Location: {d['location']}",
-                f"Confidence: {d['confidence']}%",
+        "keywords": ["production", "output", "scrap", "current shift", "shift summary", "parts"],
+        "response": {
+            "title": "Current Shift Production Summary",
+            "answer": "The current shift produced 1,842 parts against a target of 2,100. Scrap rate is 1.8%, above the 1.2% target.",
+            "source": "MES Shift Report - Current Shift",
+            "metrics": {
+                "produced": 1842,
+                "target": 2100,
+                "scrap_rate": "1.8%",
+                "target_scrap_rate": "1.2%",
+            },
+            "recommendations": [
+                "Focus on dimensional tolerance defects, currently 62% of scrap",
+                "Review first-pass yield after the last tool change",
+                "Escalate if scrap remains above target for the next 2 hours",
             ],
         },
     },
     {
-        "keywords": ["prevent", "prevention", "avoid", "future", "stop", "recur", "again", "reduce"],
-        "handler": lambda d: {
-            "title": "Prevention Recommendation",
-            "answer": d["prevention"],
-            "details": [
-                "Implementing this change is estimated to reduce similar defects by 60–80%.",
-                f"Based on root cause: {d['cause']}",
+        "keywords": ["handover", "shift handover", "handoff", "next shift"],
+        "response": {
+            "title": "Shift Handover Status",
+            "answer": "Shift handover has 3 equipment alerts pending, 14 open work orders, and one quality hold on Batch #4471.",
+            "source": "MES + Maintenance Handover Log",
+            "metrics": {
+                "equipment_alerts": 3,
+                "open_work_orders": 14,
+                "quality_holds": 1,
+                "staffing": "24 of 26 planned operators",
+            },
+            "recommendations": [
+                "Brief night shift on CNC Unit 7 vibration trend",
+                "Keep Batch #4471 on hold until quality inspection is closed",
+                "Assign one technician to clear high-priority open work orders first",
             ],
         },
     },
     {
-        "keywords": ["location", "where", "zone", "area", "position", "which part"],
-        "handler": lambda d: {
-            "title": "Defect Location",
-            "answer": f"Defect detected at: {d['location']}",
-            "details": [
-                f"Defect type: {d['defect']}",
-                "Functional impact: " + (
-                    "high — circuit paths may be compromised"
-                    if d["severity"] in ("critical", "high")
-                    else "low — non-functional zone affected"
-                ),
-            ],
-        },
-    },
-    {
-        "keywords": ["confidence", "accurate", "sure", "certain", "score", "percent", "reliable"],
-        "handler": lambda d: {
-            "title": "Detection Confidence",
-            "answer": f"Detected with {d['confidence']}% confidence.",
-            "details": [
-                "≥95%: High confidence — reliable for automated decision-making" if d["confidence"] >= 95
-                else "≥80%: Good confidence — spot-check confirmation recommended" if d["confidence"] >= 80
-                else "Moderate confidence — manual inspection recommended before action",
-                f"Defect: {d['defect']}",
+        "keywords": ["downtime", "bottleneck", "constraint", "slowest", "loss"],
+        "response": {
+            "title": "Downtime and Bottleneck Analysis",
+            "answer": "Line 5 is the current bottleneck. Availability is 84.7%, and downtime is driven by repeated feeder resets and maintenance watch events.",
+            "source": "Production Analytics - Downtime Pareto",
+            "metrics": {
+                "bottleneck_line": "LINE-5",
+                "availability": "84.7%",
+                "top_loss": "feeder resets",
+            },
+            "recommendations": [
+                "Prioritize feeder reset root-cause review on Line 5",
+                "Check whether maintenance alerts correlate with throughput dips",
+                "Move flexible operators to Line 5 until the bottleneck clears",
             ],
         },
     },
 ]
 
-FALLBACK_HANDLER = lambda d: {
-    "title": "Production Intelligence",
-    "answer": f"Detected: {d['defect']} ({d['confidence']}% confidence) at {d['location']}.",
-    "details": [f"Recommended action: {d['action']}"],
+FALLBACK = {
+    "title": "Manufacturing Assistant",
+    "answer": "I can answer manufacturing questions about OEE, production KPIs, maintenance alerts, shift handover, downtime, bottlenecks, and scrap trends.",
+    "source": "Sovra Analytics Demo Dataset",
+    "metrics": {
+        "plant_oee": "78.4%",
+        "parts_per_hour": 231,
+        "active_alerts": 3,
+    },
+    "recommendations": [
+        "Ask: What is the OEE for Line 3?",
+        "Ask: Are there any maintenance alerts for today?",
+        "Ask: Give me the current shift production summary",
+        "Ask: Which line is causing the most downtime?",
+    ],
 }
 
 
-def match_question(question: str, defect: dict) -> dict:
+def match(question: str) -> dict:
     q = question.lower()
     best, top = None, 0
     for item in KB:
         score = sum(1 for k in item["keywords"] if k in q)
         if score > top:
-            top, best = score, item["handler"]
-    return (best or FALLBACK_HANDLER)(defect)
+            top, best = score, item["response"]
+    return best or FALLBACK
+
+
+@router.get("/snapshot")
+def snapshot():
+    return PLANT_SNAPSHOT
 
 
 @router.post("/analyze")
-async def analyze(image: UploadFile = File(...)):
-    """Upload a production line image. Returns defect analysis."""
-    # Mock: rotate through defects for demo variety
-    defect = random.choice(DEFECTS)
+def analyze():
+    """Compatibility endpoint for older demos. Returns plant KPI snapshot, not CV defects."""
     return {
-        "defect_id": defect["id"],
-        "defect": defect["defect"],
-        "severity": defect["severity"],
-        "confidence": defect["confidence"],
-        "location": defect["location"],
-        "action": defect["action"],
-        "safe_to_ship": defect["safe_to_ship"],
+        "analysis_type": "manufacturing_kpi_snapshot",
+        "snapshot": PLANT_SNAPSHOT,
+        "message": "Smart Manufacturing is KPI and operations focused. Defect image analysis belongs to Sovra Vision.",
     }
 
 
 @router.post("/ask")
 def ask(payload: Question):
-    """Ask a follow-up question about the analyzed defect. Pass defect_id from /analyze."""
-    defect = next((d for d in DEFECTS if d["id"] == payload.defect_id), DEFECTS[0])
-    return match_question(payload.question, defect)
+    result = match(payload.question)
+    return {
+        **result,
+        "site": payload.site,
+        "line_id": payload.line_id,
+    }

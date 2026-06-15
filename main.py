@@ -27,9 +27,18 @@ def root():
         "service": "Sovra AI Demo APIs",
         "endpoints": {
             "automotive":    "POST /automotive/ask",
-            "enterprise":    "POST /enterprise/ask",
+            "enterprise":    "POST /enterprise/upload  ->  POST /enterprise/ask",
             "document":      "POST /document/upload  →  POST /document/ask",
-            "manufacturing": "POST /manufacturing/analyze  →  POST /manufacturing/ask",
+            "manufacturing": "GET /manufacturing/snapshot  ->  POST /manufacturing/ask",
         },
         "docs": "/docs",
+    }
+
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "Sovra AI Demo APIs",
+        "modules": ["automotive", "enterprise", "document", "manufacturing"],
     }

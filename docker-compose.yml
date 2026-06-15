@@ -1,0 +1,15 @@
+services:
+  sovra-demo-api:
+    build:
+      context: .
+    image: sovra-demo-api:latest
+    container_name: sovra-demo-api
+    ports:
+      - "${SOVRA_DEMO_API_PORT:-8003}:8003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8003/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped

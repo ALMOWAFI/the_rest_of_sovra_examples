@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/enterprise", tags=["Enterprise Knowledge Assistant"])
@@ -6,22 +6,40 @@ router = APIRouter(prefix="/enterprise", tags=["Enterprise Knowledge Assistant"]
 
 class Question(BaseModel):
     question: str
+    workspace_id: str = "demo-enterprise-kb"
 
+
+DOCUMENTS = [
+    {
+        "filename": "ISO 9001 Quality Manual.pdf",
+        "doc_type": "quality_manual",
+        "source": "ISO 9001 Quality Manual - Section 10.2",
+    },
+    {
+        "filename": "Employee Handbook 2026.docx",
+        "doc_type": "employee_handbook",
+        "source": "Employee Handbook 2026 - Section 4.1",
+    },
+    {
+        "filename": "IT Security Policy v3.pdf",
+        "doc_type": "security_policy",
+        "source": "IT Security Policy v3 - Sections 2.1, 3.2, 5.4",
+    },
+]
 
 KB = [
     {
-        "keywords": ["expense", "reimburse", "receipt", "purchase", "claim"],
+        "keywords": ["corrective", "nonconform", "non-conform", "quality manual", "root cause", "iso 9001"],
         "response": {
-            "title": "Expense Reimbursement",
-            "answer": "All business expenses must be submitted within 30 days of purchase.",
-            "source": "HR Policy Manual — Section 4.2",
+            "title": "Corrective Action Requirements",
+            "answer": "Corrective actions must be proportionate to the nonconformity, documented in the QMS, and verified for effectiveness before closure.",
+            "source": "ISO 9001 Quality Manual - Section 10.2",
             "steps": [
-                "Log in to the company portal at expenses.company.com",
-                "Upload receipt and fill in the expense category and project code",
-                "Under $50: auto-approved within 24 hours",
-                "$50–$500: requires direct manager approval (1–2 business days)",
-                "Over $500: requires department head approval (3–5 business days)",
-                "Payment processed on the 15th and last day of each month",
+                "Record the nonconformity and immediate containment action",
+                "Identify the root cause using a structured method such as 5 Whys or fishbone analysis",
+                "Assign an owner, due date, and corrective action plan",
+                "Verify effectiveness within 30 days",
+                "Escalate repeated or high-risk nonconformities to quality engineering",
             ],
         },
     },
@@ -29,142 +47,71 @@ KB = [
         "keywords": ["vacation", "annual leave", "time off", "pto", "days off", "holiday"],
         "response": {
             "title": "Vacation & PTO Policy",
-            "answer": "Full-time employees receive 20 days of paid time off per year, accrued monthly.",
-            "source": "HR Policy Manual — Section 2.1",
+            "answer": "Full-time employees receive 28 vacation days per calendar year. Part-time employees receive a pro-rated allowance.",
+            "source": "Employee Handbook 2026 - Section 4.1",
             "steps": [
-                "Accrue 1.67 days per month (resets January 1)",
-                "Request time off at least 2 weeks in advance for periods over 3 days",
-                "Submit requests via the HR portal under Leave Requests",
-                "Up to 5 unused days can be carried over to the next year",
+                "Submit vacation requests at least 2 weeks in advance",
+                "Manager approval is required before booking travel",
+                "Up to 5 unused days can be carried into the next year",
+                "Long absences over 10 working days require HR visibility",
             ],
         },
     },
     {
         "keywords": ["password", "reset", "locked", "account", "login", "access", "mfa"],
         "response": {
-            "title": "Password Reset & Account Access",
-            "answer": "Account issues are handled by the IT Helpdesk. Most resets complete within 15 minutes.",
-            "source": "IT Policy — Section 1.4",
+            "title": "Password & MFA Policy",
+            "answer": "Passwords must have at least 12 characters and MFA is mandatory for remote access and privileged systems.",
+            "source": "IT Security Policy v3 - Section 3.2",
             "steps": [
-                "Self-service reset: visit sso.company.com and click Forgot Password",
-                "If self-service fails: contact IT at it@company.com or ext. 1001",
-                "Slack #it-support for faster response during business hours",
-                "Lost MFA device: visit IT desk in person with your employee ID",
+                "Use at least 12 characters with uppercase, lowercase, number, and symbol",
+                "Do not reuse passwords across company and personal accounts",
+                "Passwords expire every 90 days for privileged users",
+                "Accounts lock after 5 failed login attempts",
+                "Lost MFA devices must be reported to IT immediately",
             ],
         },
     },
     {
-        "keywords": ["remote", "work from home", "wfh", "hybrid", "office days"],
+        "keywords": ["security", "it policy", "summarize", "summary", "classification", "incident"],
         "response": {
-            "title": "Remote Work Policy",
-            "answer": "The company operates on a hybrid model. Teams set their own in-office schedules.",
-            "source": "HR Policy Manual — Section 3.5",
+            "title": "IT Security Policy Summary",
+            "answer": "The IT policy focuses on MFA, data classification, encryption, incident reporting, approved software, and annual security training.",
+            "source": "IT Security Policy v3 - Executive Summary",
             "steps": [
-                "Minimum 2 days per week in-office (Tuesday and Thursday recommended)",
-                "Remote equipment budget: $800 one-time, request via IT portal",
-                "VPN required for all remote access to internal systems",
-                "Core hours: 10am–3pm local time regardless of location",
-                "International remote work 30+ days: requires HR and legal approval",
+                "MFA is required for remote access and sensitive systems",
+                "Data is classified as Public, Internal, Confidential, or Restricted",
+                "Confidential and Restricted data must be encrypted at rest and in transit",
+                "Security incidents must be reported within 2 hours",
+                "Unapproved software requires IT and security review before use",
             ],
         },
     },
     {
-        "keywords": ["onboarding", "new hire", "first day", "start", "joining"],
+        "keywords": ["expense", "reimburse", "receipt", "purchase", "claim"],
         "response": {
-            "title": "New Employee Onboarding",
-            "answer": "Onboarding spans your first two weeks and is structured by HR.",
-            "source": "Onboarding Guide v3.2",
+            "title": "Expense Reimbursement",
+            "answer": "Business expenses must be submitted with receipts and project codes within 30 days of purchase.",
+            "source": "Finance Policy - Expense Management",
             "steps": [
-                "Day 1: IT setup, badge, HR paperwork — report to reception at 9am",
-                "Week 1: complete all mandatory compliance training in the Learning Portal",
-                "Week 1: schedule 1:1s with your direct team members",
-                "Week 2: complete department-specific tool training",
-                "30/60/90 day check-ins are scheduled automatically by HR",
-            ],
-        },
-    },
-    {
-        "keywords": ["benefit", "insurance", "health", "dental", "401k", "pension", "equity", "stock"],
-        "response": {
-            "title": "Employee Benefits",
-            "answer": "Full benefits are available to all full-time employees from Day 1.",
-            "source": "Benefits Guide 2024",
-            "steps": [
-                "Health insurance: choose plan during first 30 days at benefits.company.com",
-                "Dental & vision: included in all health plans at no extra cost",
-                "401(k): company matches up to 4% — enroll via Fidelity portal",
-                "Life insurance: 2x annual salary, automatic enrollment",
-                "Equity/RSU: 4-year vesting schedule, 1-year cliff — see offer letter",
-            ],
-        },
-    },
-    {
-        "keywords": ["compliance", "code of conduct", "ethics", "harassment", "conflict"],
-        "response": {
-            "title": "Compliance & Code of Conduct",
-            "answer": "All employees must complete annual compliance training by December 31.",
-            "source": "Code of Conduct 2024 — Section 1",
-            "steps": [
-                "Anti-harassment: zero tolerance — report via hr@company.com or EthicsPoint anonymously",
-                "Conflict of interest: disclose outside business relationships to manager and HR",
-                "Confidentiality: all internal data is confidential — no external sharing without approval",
-                "Social media: do not speak on behalf of the company publicly",
-            ],
-        },
-    },
-    {
-        "keywords": ["payroll", "salary", "pay", "paycheck", "payslip", "compensation"],
-        "response": {
-            "title": "Payroll Information",
-            "answer": "Salaries are paid bi-weekly on Fridays.",
-            "source": "Payroll Policy — Section 2",
-            "steps": [
-                "Pay date: every other Friday — see payroll calendar on HR portal",
-                "Payslips available in Workday under Pay, 2 days before pay date",
-                "Direct deposit changes: submit at least 5 business days before next pay date",
-                "Tax forms (W-2): available by January 31 each year",
-                "Discrepancies: contact payroll@company.com",
-            ],
-        },
-    },
-    {
-        "keywords": ["training", "learning", "course", "certification", "development", "upskill", "budget"],
-        "response": {
-            "title": "Learning & Development",
-            "answer": "The company supports continuous learning with a dedicated annual budget.",
-            "source": "L&D Policy — Section 5",
-            "steps": [
-                "Annual L&D budget: $1,500 per employee (resets January 1)",
-                "Pre-approved training: any course on the internal catalog — instant approval",
-                "External certifications: submit request to manager with cost and business justification",
-                "Study time: up to 2 hours/week during work hours with manager approval",
-            ],
-        },
-    },
-    {
-        "keywords": ["it", "laptop", "equipment", "hardware", "software", "tool", "request", "ticket"],
-        "response": {
-            "title": "IT Equipment & Software",
-            "answer": "IT requests are processed within 2 business days for standard items.",
-            "source": "IT Policy — Section 2.1",
-            "steps": [
-                "New software request: submit ticket at it.company.com/requests",
-                "Hardware issue: same-day response for critical failures",
-                "Loaner equipment: available from IT desk for up to 2 weeks",
-                "Approved software list: on the IT portal — unlisted software requires security review",
+                "Upload the receipt in the company expense portal",
+                "Select the correct expense category and project code",
+                "Manager approval is required for expenses above 50 EUR",
+                "Payments are processed twice per month",
             ],
         },
     },
 ]
 
 FALLBACK = {
-    "title": "Let Me Check That",
-    "answer": "I can help with HR policies, IT support, compliance, payroll, benefits, and internal procedures. Try rephrasing with more specific keywords.",
-    "source": "General Reference",
+    "title": "Enterprise Knowledge Search",
+    "answer": "I can answer questions grounded in the loaded enterprise documents: quality manual, employee handbook, and IT security policy.",
+    "source": "Sovra Knowledge Demo Workspace",
     "steps": [
-        "Browse the full policy library at policy.company.com",
-        "For urgent HR matters: hr@company.com",
-        "For IT issues: it@company.com or Slack #it-support",
+        "Ask about corrective action requirements",
+        "Ask about vacation or HR policy",
+        "Ask about password, MFA, or IT security rules",
+        "Upload a PDF, DOCX, or manual in the demo to simulate a new knowledge base",
     ],
 }
 
@@ -179,6 +126,38 @@ def match(question: str) -> dict:
     return best or FALLBACK
 
 
+@router.post("/upload")
+async def upload(files: list[UploadFile] = File(...)):
+    """Mock enterprise document ingestion. Content is not parsed in this demo."""
+    uploaded = [
+        {
+            "filename": file.filename or "uploaded-document",
+            "content_type": file.content_type or "application/octet-stream",
+            "status": "indexed",
+        }
+        for file in files
+    ]
+    return {
+        "workspace_id": "demo-enterprise-kb",
+        "status": "ready",
+        "indexed_documents": uploaded or DOCUMENTS,
+        "demo_documents": DOCUMENTS,
+        "message": "Documents indexed for demo RAG search.",
+    }
+
+
+@router.get("/documents")
+def documents():
+    return {
+        "workspace_id": "demo-enterprise-kb",
+        "documents": DOCUMENTS,
+    }
+
+
 @router.post("/ask")
 def ask(payload: Question):
-    return match(payload.question)
+    result = match(payload.question)
+    return {
+        **result,
+        "workspace_id": payload.workspace_id,
+    }

@@ -1,5 +1,4 @@
-import random
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, UploadFile
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/document", tags=["Document Intelligence"])
@@ -7,7 +6,7 @@ router = APIRouter(prefix="/document", tags=["Document Intelligence"])
 
 class Question(BaseModel):
     question: str
-    doc_type: str = "document"  # passed back from /upload response
+    doc_type: str = "contract"  # passed back from /upload response
 
 
 # Mock document profiles keyed by type
@@ -117,7 +116,20 @@ KB = [
         },
     },
     {
-        "keywords": ["risk", "penalty", "termination", "liability", "issue", "concern", "flag", "problem"],
+        "keywords": ["liability", "limitation of liability", "liability clause"],
+        "handler": lambda p: {
+            "title": "Liability Clause",
+            "answer": "The document limits liability to the contract value unless excluded by law or by specific carve-outs such as fraud, willful misconduct, or data breach obligations.",
+            "items": [
+                "Liability cap: total contract value",
+                "Review carve-outs before signature",
+                "Legal review recommended for high-risk or regulated deployments",
+            ],
+            "quote": "Limitation of liability capped at total contract value",
+        },
+    },
+    {
+        "keywords": ["risk", "penalty", "termination", "issue", "concern", "flag", "problem"],
         "handler": lambda p: {
             "title": "Risks & Flagged Items",
             "answer": "The following items were flagged during analysis:",
@@ -182,6 +194,10 @@ async def upload(file: UploadFile = File(...)):
     doc_type = detect_type(file.filename or "document")
     profile = PROFILES[doc_type]
     return {
+        "status": "analyzed",
+        "document_id": f"demo-{doc_type}",
+        "filename": file.filename or profile["label"],
+        "content_type": file.content_type or "application/octet-stream",
         "doc_type": doc_type,
         "label": profile["label"],
         "pages": profile["pages"],
